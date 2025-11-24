@@ -9,6 +9,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import java.util.Date;
+import org.springframework.web.bind.annotation.CrossOrigin;
 
 import java.util.List;
 
@@ -20,6 +22,7 @@ import java.util.List;
                 del microservicio. 
                 """
 )
+@CrossOrigin(origins = "http://localhost:5173")
 @RestController
 @RequestMapping("/api/v1/contacto")
 public class ContactoController {
@@ -75,6 +78,16 @@ public class ContactoController {
     @PostMapping
     public ResponseEntity<Contacto> create(@RequestBody Contacto contacto) {
         try{
+            // Asegurarse de que campos obligatorios a nivel de base de datos tengan valores
+            if (contacto.getIdUsuario() == null) {
+                // En el formulario de contacto público no se asocia usuario; usar 0 como marcador
+                contacto.setIdUsuario(0);
+            }
+            // Establecer fecha de creación si no viene
+            if (contacto.getFCreacion() == null) {
+                contacto.setFCreacion(new Date());
+            }
+
             contactoService.save(contacto);
             return ResponseEntity.status(HttpStatus.CREATED).build();
         }catch(RuntimeException e){

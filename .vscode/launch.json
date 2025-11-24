@@ -1,0 +1,61 @@
+{
+    "configurations": [
+        {
+            "type": "java",
+            "name": "ContactoApiApplication",
+            "request": "launch",
+            "mainClass": "cl.condor.contacto_api.ContactoApiApplication",
+            "projectName": "contacto-api"
+        },
+        {
+            "type": "java",
+            "name": "Spring Boot-CalificacionesApiApplication<calificaciones-api>",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "mainClass": "cl.condor.calificaciones_api.CalificacionesApiApplication",
+            "projectName": "calificaciones-api",
+            "args": "",
+            "envFile": "${workspaceFolder}/.env"
+        },
+        {
+            "type": "java",
+            "name": "Spring Boot-IniciarRutasApiApplication<iniciar-rutas-api>",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "mainClass": "cl.condor.iniciar_rutas_api.IniciarRutasApiApplication",
+            "projectName": "iniciar-rutas-api",
+            "args": "",
+            "envFile": "${workspaceFolder}/.env"
+        },
+        {
+            "type": "java",
+            "name": "Spring Boot-LogrosApiApplication<logros-api>",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "mainClass": "cl.condor.logros_api.LogrosApiApplication",
+            "projectName": "logros-api",
+            "args": "",
+            "envFile": "${workspaceFolder}/.env"
+        },
+        {
+            "type": "java",
+            "name": "Spring Boot-RutasApiApplication<rutas-api>",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "mainClass": "cl.condor.rutas_api.RutasApiApplication",
+            "projectName": "rutas-api",
+            "args": "",
+            "envFile": "${workspaceFolder}/.env"
+        },
+        {
+            "type": "java",
+            "name": "Spring Boot-UsuariosApiApplication<usuarios-api>",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "mainClass": "cl.condor.usuarios_api.UsuariosApiApplication",
+            "projectName": "usuarios-api",
+            "args": "",
+            "envFile": "${workspaceFolder}/.env"
+        }
+    ]
+}
