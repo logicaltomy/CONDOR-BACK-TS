@@ -128,6 +128,14 @@ public class UsuarioService {
         return usuarioRepository.save(usuario);
     }
 
+    @Transactional
+    public Usuario updateRutasRecorridas(Integer id, Integer nuevasRutas) {
+        Usuario usuario = usuarioRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+        usuario.setRutasRecorridas(nuevasRutas);
+        return usuarioRepository.save(usuario);
+    }
+
     public void login(LoginDTO loginDTO) {
         Usuario usuario = usuarioRepository.findByCorreo(loginDTO.getCorreo())
                 .orElseThrow(() -> new RuntimeException("Credenciales invalidas"));

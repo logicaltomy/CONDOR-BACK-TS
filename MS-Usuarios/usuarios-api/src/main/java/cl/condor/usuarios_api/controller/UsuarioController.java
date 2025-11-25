@@ -12,7 +12,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.bind.annotation.CrossOrigin;
 
 import java.util.List;
 
@@ -23,7 +22,6 @@ import java.util.List;
             Gestiona la creación, consulta, listado y seguridad (login/recuperación).
             """
 )
-@CrossOrigin(origins = "http://localhost:5173")
 @RestController
 @RequestMapping("/api/v1/usuarios")
 public class UsuarioController {
@@ -121,6 +119,16 @@ public class UsuarioController {
                 return ResponseEntity.notFound().build();
             }
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    @PatchMapping("/{id}/rutasRecorridas")
+    public ResponseEntity<Usuario> updateRutasRecorridas(@PathVariable Integer id, @RequestParam Integer nuevasRutas) {
+        try {
+            Usuario actualizado = usuarioService.updateRutasRecorridas(id, nuevasRutas);
+            return ResponseEntity.ok(actualizado);
+        } catch (RuntimeException e) {
+            return ResponseEntity.notFound().build();
         }
     }
 
