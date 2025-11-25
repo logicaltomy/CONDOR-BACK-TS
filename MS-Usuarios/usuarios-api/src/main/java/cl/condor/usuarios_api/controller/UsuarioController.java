@@ -5,6 +5,7 @@ import cl.condor.usuarios_api.dto.PreguntasResponseDTO; // IMPORTANTE: DTO Nuevo
 import cl.condor.usuarios_api.dto.RecuperacionDTO;      // IMPORTANTE: DTO Nuevo
 import cl.condor.usuarios_api.dto.UsuarioDTO;
 import cl.condor.usuarios_api.model.Usuario;
+import cl.condor.usuarios_api.dto.ChangePasswordDTO;
 import cl.condor.usuarios_api.service.UsuarioService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -154,6 +155,28 @@ public class UsuarioController {
             return ResponseEntity.ok(actualizado);
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().build(); 
+        }
+    }
+
+    @Operation(summary = "Cambiar contraseña (requiere contraseña actual)")
+    @PatchMapping("/{id}/password")
+    public ResponseEntity<?> changePassword(@PathVariable Integer id, @RequestBody ChangePasswordDTO dto) {
+        try {
+            usuarioService.changePassword(id, dto.getOldPassword(), dto.getNewPassword());
+            return ResponseEntity.ok().build();
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @Operation(summary = "Eliminar (borrar) un usuario por id")
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteUsuario(@PathVariable Integer id) {
+        try {
+            usuarioService.deleteById(id);
+            return ResponseEntity.noContent().build();
+        } catch (RuntimeException e) {
+            return ResponseEntity.notFound().build();
         }
     }
 

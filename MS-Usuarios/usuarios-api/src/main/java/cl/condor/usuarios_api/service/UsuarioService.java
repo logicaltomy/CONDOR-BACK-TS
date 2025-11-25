@@ -136,6 +136,34 @@ public class UsuarioService {
         return usuarioRepository.save(usuario);
     }
 
+    @Transactional
+    public void changePassword(Integer id, String oldPassword, String newPassword) {
+        Usuario usuario = usuarioRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+
+        if (oldPassword == null || newPassword == null) {
+            throw new RuntimeException("Old and new password must be provided");
+        }
+
+        if (!encoder.matches(oldPassword, usuario.getContrasena())) {
+            throw new RuntimeException("Contraseña actual incorrecta");
+        }
+
+        if (newPassword.length() < 4) {
+            throw new RuntimeException("La nueva contraseña debe tener al menos 4 caracteres.");
+        }
+
+        usuario.setContrasena(encoder.encode(newPassword));
+        usuarioRepository.save(usuario);
+    }
+
+    @Transactional
+    public void deleteById(Integer id) {
+        Usuario usuario = usuarioRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+        usuarioRepository.delete(usuario);
+    }
+
     public void login(LoginDTO loginDTO) {
         Usuario usuario = usuarioRepository.findByCorreo(loginDTO.getCorreo())
                 .orElseThrow(() -> new RuntimeException("Credenciales invalidas"));
