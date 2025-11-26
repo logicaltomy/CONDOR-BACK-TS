@@ -9,12 +9,14 @@ import cl.condor.usuarios_api.dto.ChangePasswordDTO;
 import cl.condor.usuarios_api.service.UsuarioService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @Tag(
         name = "Usuarios",
@@ -23,9 +25,11 @@ import java.util.List;
             Gestiona la creación, consulta, listado y seguridad (login/recuperación).
             """
 )
+@CrossOrigin(origins = "http://localhost:5173")
 @RestController
 @RequestMapping("/api/v1/usuarios")
 public class UsuarioController {
+
 
     @Autowired
     private UsuarioService usuarioService;
@@ -83,7 +87,7 @@ public class UsuarioController {
             return ResponseEntity.status(HttpStatus.CREATED).body(saved);
         } catch (RuntimeException e) {
             // Capturamos errores de validación (ej: faltan preguntas de seguridad)
-            return ResponseEntity.badRequest().body(e.getMessage());
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
         }
     }
 
@@ -135,26 +139,31 @@ public class UsuarioController {
 
     @Operation(summary = "Login de usuario")
     @PostMapping("/login")
-    public ResponseEntity<Void> login(@RequestBody LoginDTO loginDTO) {
+    public ResponseEntity<?> login(@RequestBody LoginDTO loginDTO) {
         try {
             usuarioService.login(loginDTO);
             return ResponseEntity.ok().build();
         }catch (RuntimeException e) {
-            if(e.getMessage().equals("Credenciales invalidas")) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            String msg = e.getMessage();
+            if("Credenciales invalidas".equals(msg)) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", msg));
             }
-            return  ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+            if("Su cuenta se encuentra desactivada por nuestro sistema, comuniquese a soporte si desea recuperarla.".equals(msg)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", msg));
+            }
+            return  ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("message", msg));
         }
     }
 
     @Operation(summary = "Actualizar foto de perfil (Base64)")
     @PatchMapping("/{id}/foto")
-    public ResponseEntity<Usuario> updateFotoPerfil(@PathVariable Integer id, @RequestBody String fotoBase64) {
+    public ResponseEntity<?> updateFotoPerfil(@PathVariable Integer id, @RequestBody java.util.Map<String, String> payload) {
         try {
+            String fotoBase64 = payload.get("foto");
             Usuario actualizado = usuarioService.updateFoto(id, fotoBase64);
             return ResponseEntity.ok(actualizado);
         } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().build(); 
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
         }
     }
 
@@ -165,7 +174,7 @@ public class UsuarioController {
             usuarioService.changePassword(id, dto.getOldPassword(), dto.getNewPassword());
             return ResponseEntity.ok().build();
         } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
         }
     }
 
@@ -195,7 +204,7 @@ public class UsuarioController {
             return ResponseEntity.ok(response);
         } catch (RuntimeException e) {
             // Retorna 404 si el usuario no existe o 400 si no tiene preguntas configuradas
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", e.getMessage()));
         }
     }
 
@@ -211,10 +220,10 @@ public class UsuarioController {
         try {
             usuarioService.recuperarContrasena(recuperacionDTO);
             // Devolvemos un mensaje simple o un JSON 200 OK
-            return ResponseEntity.ok("Contraseña restablecida con éxito.");
+            return ResponseEntity.ok(Map.of("message", "Contraseña restablecida con éxito."));
         } catch (RuntimeException e) {
             // Si las respuestas son incorrectas, devolvemos 400 Bad Request con el mensaje del error
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", e.getMessage()));
         }
     }
 }

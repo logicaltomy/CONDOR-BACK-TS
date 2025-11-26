@@ -95,6 +95,14 @@ public class UsuarioService {
         // Las preguntas se guardan tal cual vienen del ComboBox
         // ----------------------------------------
 
+        // --- ESTADO POR DEFECTO ---
+        if (usuario.getIdEstado() == null) {
+            // Por defecto marcamos como activo (id = 1)
+            usuario.setIdEstado(1);
+        } else if (!estadoRepository.existsById(usuario.getIdEstado())) {
+            throw new RuntimeException("Estado no encontrado, no se puede guardar el Usuario");
+        }
+
         usuario.setContrasena(encoder.encode(usuario.getContrasena()));
         return usuarioRepository.save(usuario);
     }
@@ -141,16 +149,22 @@ public class UsuarioService {
         Usuario usuario = usuarioRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
 
+        // Verificar que el usuario no esté desactivado antes de permitir cambiar la contraseña
+        final Integer INACTIVE_STATE_ID = 2;
+        if (usuario.getIdEstado() != null && usuario.getIdEstado().equals(INACTIVE_STATE_ID)) {
+            throw new RuntimeException("No es posible cambiar la contraseña: la cuenta está desactivada.");
+        }
+
         if (oldPassword == null || newPassword == null) {
-            throw new RuntimeException("Old and new password must be provided");
+            throw new RuntimeException("Debe proporcionar la contraseña actual y la nueva.");
         }
 
         if (!encoder.matches(oldPassword, usuario.getContrasena())) {
             throw new RuntimeException("Contraseña actual incorrecta");
         }
 
-        if (newPassword.length() < 4) {
-            throw new RuntimeException("La nueva contraseña debe tener al menos 4 caracteres.");
+        if (newPassword.length() < 6) {
+            throw new RuntimeException("La nueva contraseña debe tener al menos 6 caracteres.");
         }
 
         usuario.setContrasena(encoder.encode(newPassword));
@@ -161,12 +175,25 @@ public class UsuarioService {
     public void deleteById(Integer id) {
         Usuario usuario = usuarioRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
-        usuarioRepository.delete(usuario);
+
+        // Soft-delete: marcar el usuario como inactivo en lugar de eliminar físicamente.
+        final Integer INACTIVE_STATE_ID = 2; // Ajustar si en la BD el id para 'Inactivo' es otro
+        if (!estadoRepository.existsById(INACTIVE_STATE_ID)) {
+            throw new RuntimeException("Estado 'Inactivo' (id=2) no existe. Crea el estado o ajusta la constante INACTIVE_STATE_ID.");
+        }
+
+        usuario.setIdEstado(INACTIVE_STATE_ID);
+        usuarioRepository.save(usuario);
     }
 
     public void login(LoginDTO loginDTO) {
         Usuario usuario = usuarioRepository.findByCorreo(loginDTO.getCorreo())
                 .orElseThrow(() -> new RuntimeException("Credenciales invalidas"));
+        // Verificar estado del usuario antes de chequear contraseña
+        final Integer INACTIVE_STATE_ID = 2;
+        if (usuario.getIdEstado() != null && usuario.getIdEstado().equals(INACTIVE_STATE_ID)) {
+            throw new RuntimeException("Su cuenta se encuentra desactivada por nuestro sistema, comuniquese a soporte si desea recuperarla.");
+        }
 
         if (!encoder.matches(loginDTO.getPassword(), usuario.getContrasena())){
             throw new RuntimeException("Credenciales invalidas");
@@ -236,6 +263,12 @@ public class UsuarioService {
         Usuario usuario = usuarioRepository.findByCorreo(dto.getCorreo())
                 .orElseThrow(() -> new RuntimeException("Usuario no encontrado."));
 
+        // No permitir recuperación si usuario está desactivado
+        final Integer INACTIVE_STATE_ID = 2;
+        if (usuario.getIdEstado() != null && usuario.getIdEstado().equals(INACTIVE_STATE_ID)) {
+            throw new RuntimeException("No es posible recuperar la contraseña: la cuenta está desactivada.");
+        }
+
         // 2. Verificar que existan datos guardados en BD
         if (usuario.getRespuestaSeguridad1() == null || usuario.getRespuestaSeguridad2() == null) {
             throw new RuntimeException("Error de integridad: Usuario sin respuestas configuradas.");
@@ -258,9 +291,9 @@ public class UsuarioService {
         }
 
         // 6. Validar la nueva contraseña
-        if (dto.getNuevaPassword() == null || dto.getNuevaPassword().length() < 4) {
-             throw new RuntimeException("La nueva contraseña debe tener al menos 4 caracteres.");
-        }
+           if (dto.getNuevaPassword() == null || dto.getNuevaPassword().length() < 6) {
+               throw new RuntimeException("La nueva contraseña debe tener al menos 6 caracteres.");
+           }
 
         // 7. Todo OK -> Hashear y guardar nueva contraseña
         usuario.setContrasena(encoder.encode(dto.getNuevaPassword()));
