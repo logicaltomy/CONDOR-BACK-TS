@@ -178,16 +178,8 @@ public class UsuarioController {
         }
     }
 
-    @Operation(summary = "Eliminar (borrar) un usuario por id")
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteUsuario(@PathVariable Integer id) {
-        try {
-            usuarioService.deleteById(id);
-            return ResponseEntity.noContent().build();
-        } catch (RuntimeException e) {
-            return ResponseEntity.notFound().build();
-        }
-    }
+    
+
 
     // ==================================================================
     //  NUEVOS ENDPOINTS PARA RECUPERACIÓN DE CONTRASEÑA

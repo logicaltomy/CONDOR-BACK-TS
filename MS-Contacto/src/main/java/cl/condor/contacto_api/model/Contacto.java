@@ -33,4 +33,10 @@ public class Contacto {
     @Column(name = "f_creacion")
     private Date fCreacion;
 
+    @Column(name = "respuesta", nullable = true, length = 1000)
+    private String respuesta;
+
+    @Column(name = "resuelto", nullable = false)
+    private Boolean resuelto = false;
+
 }

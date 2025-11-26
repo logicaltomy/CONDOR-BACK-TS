@@ -11,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import java.util.Date;
 import org.springframework.web.bind.annotation.CrossOrigin;
+import java.util.Map;
 
 import java.util.List;
 
@@ -22,7 +23,7 @@ import java.util.List;
                 del microservicio. 
                 """
 )
-@CrossOrigin(origins = "http://localhost:5173")
+@CrossOrigin(origins = "http://localhost:5173", allowedHeaders = "*")
 @RestController
 @RequestMapping("/api/v1/contacto")
 public class ContactoController {
@@ -104,13 +105,56 @@ public class ContactoController {
                     """
     )
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable Integer id) {
+    public ResponseEntity<Void> delete(@PathVariable Integer id,
+                                       @RequestHeader(value = "X-User-Role", required = false) String roleHeader) {
         try {
+            // Verificar rol: solo moderador o admin pueden borrar
+            System.out.println("[ContactoController] DELETE called. X-User-Role=" + roleHeader);
+            if (!isModeratorOrAdmin(roleHeader)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(null);
+            }
             contactoService.deleteById(id);
             return ResponseEntity.noContent().build();
         }catch(RuntimeException e){
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
+    }
+
+
+    @Operation(
+            summary = "Actualizar un formulario de contacto",
+            description = "Permite actualizar campos como respuesta y marcar como resuelto"
+    )
+    @PutMapping("/{id}")
+    public ResponseEntity<?> update(@PathVariable Integer id,
+                                    @RequestBody Contacto updated,
+                                    @RequestHeader(value = "X-User-Role", required = false) String roleHeader) {
+        try {
+            // Verificar rol
+            System.out.println("[ContactoController] PUT called. X-User-Role=" + roleHeader);
+            if (!isModeratorOrAdmin(roleHeader)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", "Acceso denegado: se requiere rol moderador."));
+            }
+            Contacto existing = contactoService.findById(id);
+            // Solo actualizar campos permitidos por moderador
+            existing.setRespuesta(updated.getRespuesta());
+            existing.setResuelto(updated.getResuelto() != null ? updated.getResuelto() : existing.getResuelto());
+            contactoService.save(existing);
+            return ResponseEntity.ok().build();
+        } catch (RuntimeException e) {
+            if (e.getMessage().equals("Contacto no encontrado")) return ResponseEntity.notFound().build();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    private boolean isModeratorOrAdmin(String roleHeader) {
+        if (roleHeader == null) return false;
+        String v = roleHeader.trim().toLowerCase();
+        // Accept numeric role ids or textual names
+        if (v.equals("1") || v.contains("admin")) return true;
+        // En la base de datos el id para Moderador es 2 (Administrador=1, Moderador=2, Usuario=3)
+        if (v.equals("2") || v.contains("moder")) return true;
+        return false;
     }
 
 }

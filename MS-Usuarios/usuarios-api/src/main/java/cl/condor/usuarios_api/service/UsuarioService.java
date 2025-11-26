@@ -70,8 +70,18 @@ public class UsuarioService {
         if (usuario.getIdRegion() == null || !regionRepository.existsById(usuario.getIdRegion())) {
             throw new RuntimeException("La región es obligatoria, no se puede guardar el Usuario");
         }
-        if (usuario.getIdRol() == null || !rolRepository.existsById(usuario.getIdRol())) {
-            throw new RuntimeException("Rol no encontrado, no se puede guardar el Usuario");
+        // Asignamos siempre el rol 'Usuario' buscándolo por nombre (no confiar en idRol enviado por el cliente)
+        java.util.Optional<cl.condor.usuarios_api.model.Rol> rolOpt = rolRepository.findByNombreIgnoreCase("usuario");
+        if (!rolOpt.isPresent()) {
+            rolOpt = rolRepository.findByNombreIgnoreCase("user");
+        }
+        if (!rolOpt.isPresent()) {
+            rolOpt = rolRepository.findByNombreIgnoreCase("role_user");
+        }
+        if (rolOpt.isPresent()) {
+            usuario.setIdRol(rolOpt.get().getId());
+        } else {
+            throw new RuntimeException("Rol 'Usuario' no encontrado, no se puede guardar el Usuario");
         }
 
         // --- VALIDACIÓN DE SEGURIDAD (NUEVO) ---
