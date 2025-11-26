@@ -16,7 +16,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
 
 @Service
 @Transactional
@@ -50,10 +49,6 @@ public class UsuarioService {
                 .idRegion(usuario.getIdRegion())
                 .idEstado(usuario.getIdEstado())
                 .build();
-    }
-
-    public List<Usuario> findAll() {
-        return usuarioRepository.findAll();
     }
 
     public Usuario findById(Integer id) {
@@ -136,64 +131,6 @@ public class UsuarioService {
                 .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
         usuario.setCorreo(nuevoCorreo);
         return usuarioRepository.save(usuario);
-    }
-
-    @Transactional
-    public Usuario updateRegion(Integer id, Integer nuevaRegion) {
-        Usuario usuario = usuarioRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
-        usuario.setIdRegion(nuevaRegion);
-        return usuarioRepository.save(usuario);
-    }
-
-    @Transactional
-    public Usuario updateRutasRecorridas(Integer id, Integer nuevasRutas) {
-        Usuario usuario = usuarioRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
-        usuario.setRutasRecorridas(nuevasRutas);
-        return usuarioRepository.save(usuario);
-    }
-
-    @Transactional
-    public void changePassword(Integer id, String oldPassword, String newPassword) {
-        Usuario usuario = usuarioRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
-
-        // Verificar que el usuario no esté desactivado antes de permitir cambiar la contraseña
-        final Integer INACTIVE_STATE_ID = 2;
-        if (usuario.getIdEstado() != null && usuario.getIdEstado().equals(INACTIVE_STATE_ID)) {
-            throw new RuntimeException("No es posible cambiar la contraseña: la cuenta está desactivada.");
-        }
-
-        if (oldPassword == null || newPassword == null) {
-            throw new RuntimeException("Debe proporcionar la contraseña actual y la nueva.");
-        }
-
-        if (!encoder.matches(oldPassword, usuario.getContrasena())) {
-            throw new RuntimeException("Contraseña actual incorrecta");
-        }
-
-        if (newPassword.length() < 6) {
-            throw new RuntimeException("La nueva contraseña debe tener al menos 6 caracteres.");
-        }
-
-        usuario.setContrasena(encoder.encode(newPassword));
-        usuarioRepository.save(usuario);
-    }
-
-    @Transactional
-    public void deleteById(Integer id) {
-        Usuario usuario = usuarioRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
-
-        // Soft-delete: marcar el usuario como inactivo en lugar de eliminar físicamente.
-        final Integer INACTIVE_STATE_ID = 2; // Ajustar si en la BD el id para 'Inactivo' es otro
-        if (!estadoRepository.existsById(INACTIVE_STATE_ID)) {
-            throw new RuntimeException("Estado 'Inactivo' (id=2) no existe. Crea el estado o ajusta la constante INACTIVE_STATE_ID.");
-        }
-
-        usuario.setIdEstado(INACTIVE_STATE_ID);
-        usuarioRepository.save(usuario);
     }
 
     public void login(LoginDTO loginDTO) {

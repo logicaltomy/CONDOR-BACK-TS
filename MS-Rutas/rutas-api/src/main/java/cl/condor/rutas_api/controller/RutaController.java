@@ -315,22 +315,6 @@ public class RutaController {
         }
     }
 
-    @Operation(
-            summary = "Funcion que te trae el tipo de la ruta"
-    )
-    @GetMapping("/tipo/{id}")
-    public ResponseEntity<Tipo> tipoRuta(@PathVariable Integer id) {
-        try {
-            Tipo tipo = rutaService.findTipoById(id);
-            return ResponseEntity.ok(tipo);
-        }catch (RuntimeException e) {
-            if (e.getMessage().equals("Tipo no encontrada")){
-                return ResponseEntity.notFound().build();
-            }
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
-    }
-
     @GetMapping("/tipo")
     public ResponseEntity<List<Tipo>> getAllTipo() {
         try {
@@ -341,23 +325,6 @@ public class RutaController {
         }
     }
     
-
-    @Operation(
-            summary = "Funcion que trae que dificultad es la ruta"
-    )
-    @GetMapping("/dificultad/{id}")
-    public ResponseEntity<Dificultad> dificultadRuta(@PathVariable Integer id) {
-        try{
-            Dificultad dificultad = rutaService.findDificultadById(id);
-            return ResponseEntity.ok(dificultad);
-        } catch (RuntimeException e) {
-            if (e.getMessage().equals("Dificultad no encontrada")){
-                return ResponseEntity.notFound().build();
-            }
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
-    }
-
     @GetMapping("/dificultad")
     public ResponseEntity<List<Dificultad>> getAllDificultad() {
         try {

@@ -209,18 +209,8 @@ public class RutaService {
         rutaRepository.delete(ruta);
     }
 
-    public Tipo findTipoById(Integer id) {
-        return tipoRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Tipo no encontrada"));
-    }
-
     public List<Tipo> findAllTipos() {
         return tipoRepository.findAll();
-    }
-
-    public Dificultad findDificultadById(Integer id) {
-        return dificultadRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Dificultad no encontrada"));
     }
 
     public List<Dificultad> findAllDificultades() {

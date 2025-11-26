@@ -34,4 +34,19 @@ public class RutaClient {
                 .bodyToMono(Map.class)
                 .block();
     }
+
+        public void actualizarPromedioRuta(Integer id, java.math.BigDecimal promedio) {
+                // Construir un payload mínimo para la actualización PUT
+                java.util.Map<String, Object> payload = new java.util.HashMap<>();
+                payload.put("prom_calificacion", promedio);
+
+                this.webClient.put()
+                                .uri("/{id}", id)
+                                .bodyValue(payload)
+                                .retrieve()
+                                .onStatus(status -> status.is4xxClientError(), resp -> resp.bodyToMono(String.class).map(b -> new RuntimeException("Ruta no encontrada")))
+                                .onStatus(status -> status.is5xxServerError(), resp -> resp.bodyToMono(String.class).map(b -> new RuntimeException("Error en servicio Rutas")))
+                                .bodyToMono(Void.class)
+                                .block();
+        }
 }

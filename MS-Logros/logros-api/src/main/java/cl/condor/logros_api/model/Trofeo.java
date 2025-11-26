@@ -27,4 +27,13 @@ public class Trofeo {
 
     @Column(name = "id_logro")
     private Integer idLogro;
+
+    // Compatibility camelCase accessors for older code/tests that expect getIdTrofeo()/setIdTrofeo()
+    public Integer getIdTrofeo() {
+        return this.id_trofeo;
+    }
+
+    public void setIdTrofeo(Integer id) {
+        this.id_trofeo = id;
+    }
 }

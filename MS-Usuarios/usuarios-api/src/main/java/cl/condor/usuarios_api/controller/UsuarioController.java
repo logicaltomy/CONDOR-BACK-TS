@@ -5,7 +5,6 @@ import cl.condor.usuarios_api.dto.PreguntasResponseDTO; // IMPORTANTE: DTO Nuevo
 import cl.condor.usuarios_api.dto.RecuperacionDTO;      // IMPORTANTE: DTO Nuevo
 import cl.condor.usuarios_api.dto.UsuarioDTO;
 import cl.condor.usuarios_api.model.Usuario;
-import cl.condor.usuarios_api.dto.ChangePasswordDTO;
 import cl.condor.usuarios_api.service.UsuarioService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -15,7 +14,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 import java.util.Map;
 
 @Tag(
@@ -37,14 +35,6 @@ public class UsuarioController {
     // ==================================================================
     //  ENDPOINTS EXISTENTES (GET, POST, PATCH) - SE MANTIENEN IGUAL
     // ==================================================================
-
-    @Operation(summary = "Listar todos los usuarios")
-    @GetMapping
-    public ResponseEntity<List<Usuario>> getAll() {
-        List<Usuario> lista = usuarioService.findAll();
-        if (lista.isEmpty()) return ResponseEntity.noContent().build();
-        return ResponseEntity.ok(lista);
-    }
 
     @Operation(summary = "Buscar usuario por ID")
     @GetMapping("/{id}")
@@ -113,30 +103,6 @@ public class UsuarioController {
         }
     }
 
-    @Operation(summary = "Actualizar solo la región de un usuario")
-    @PatchMapping("/{id}/region")
-    public ResponseEntity<Usuario> updateRegion(@PathVariable Integer id, @RequestParam Integer idRegion) {
-        try {
-            Usuario actualizado = usuarioService.updateRegion(id, idRegion);
-            return ResponseEntity.ok(actualizado);
-        } catch (RuntimeException e) {
-            if(e.getMessage().equals("Region no encontrado")) {
-                return ResponseEntity.notFound().build();
-            }
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
-    }
-
-    @PatchMapping("/{id}/rutasRecorridas")
-    public ResponseEntity<Usuario> updateRutasRecorridas(@PathVariable Integer id, @RequestParam Integer nuevasRutas) {
-        try {
-            Usuario actualizado = usuarioService.updateRutasRecorridas(id, nuevasRutas);
-            return ResponseEntity.ok(actualizado);
-        } catch (RuntimeException e) {
-            return ResponseEntity.notFound().build();
-        }
-    }
-
     @Operation(summary = "Login de usuario")
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginDTO loginDTO) {
@@ -162,17 +128,6 @@ public class UsuarioController {
             String fotoBase64 = payload.get("foto");
             Usuario actualizado = usuarioService.updateFoto(id, fotoBase64);
             return ResponseEntity.ok(actualizado);
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
-        }
-    }
-
-    @Operation(summary = "Cambiar contraseña (requiere contraseña actual)")
-    @PatchMapping("/{id}/password")
-    public ResponseEntity<?> changePassword(@PathVariable Integer id, @RequestBody ChangePasswordDTO dto) {
-        try {
-            usuarioService.changePassword(id, dto.getOldPassword(), dto.getNewPassword());
-            return ResponseEntity.ok().build();
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
         }

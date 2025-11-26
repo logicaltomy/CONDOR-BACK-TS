@@ -19,6 +19,7 @@ import org.springframework.web.reactive.function.client.WebClientRequestExceptio
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -42,6 +43,9 @@ public class LogroController {
 
     @Autowired
     private TrofeoRepository trofeoRepository;
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
 
     // --- ENDPOINTS: LOGROS (CRUD BÁSICO) --------------------------------------
 
@@ -85,6 +89,24 @@ public class LogroController {
                 return ResponseEntity.notFound().build();
             }
             // y se mapea a 400 Bad Request.
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
+    /**
+     * Overloaded helper used by unit tests that call the controller method directly
+     * without an HttpServletRequest. This method is NOT mapped as an endpoint.
+     */
+    public ResponseEntity<Logro> createLogro(Logro logro) {
+        try {
+            Logro resultado = logroService.save(logro);
+            return ResponseEntity.ok(resultado);
+        } catch (WebClientRequestException e) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
+        } catch (RuntimeException e) {
+            if (e.getMessage() != null && e.getMessage().equals("Estado no encontrado")) {
+                return ResponseEntity.notFound().build();
+            }
             return ResponseEntity.badRequest().build();
         }
     }
@@ -362,7 +384,38 @@ public class LogroController {
     @GetMapping("/trofeos/usuario/{idUsuario}")
     public ResponseEntity<java.util.List<java.util.Map<String,Object>>> getTrofeosByUsuario(@PathVariable Integer idUsuario){
         try{
-            java.util.List<Trofeo> trofeos = trofeoRepository.findByIdUsuario(idUsuario);
+            java.util.List<Trofeo> trofeos = null;
+            try {
+                trofeos = trofeoRepository.findByIdUsuario(idUsuario);
+            } catch (Exception repoEx) {
+                // Repository call failed — log and attempt JDBC fallback below
+                logger.error("Error querying trofeos via repository for usuario {}: {}", idUsuario, repoEx.toString());
+                logger.debug("Repository exception:", repoEx);
+                trofeos = null;
+            }
+
+            // If repository returned null/failed, try a direct JDBC query as a fallback
+            if (trofeos == null) {
+                String sql = "SELECT t.id_trofeo, t.f_obtencion, t.id_usuario, t.id_logro, l.nombre as logro_nombre, l.descripcion as logro_descripcion, l.id_condicion as logro_id_condicion, c.id_condicion as condicion_id, c.condicion as condicion_template, c.restriccion as restriccion "
+                        + "FROM trofeo t LEFT JOIN logro l ON t.id_logro = l.id_logro LEFT JOIN condicion c ON l.id_condicion = c.id_condicion WHERE t.id_usuario = ?";
+                java.util.List<java.util.Map<String,Object>> rows = jdbcTemplate.queryForList(sql, idUsuario);
+                if (rows == null || rows.isEmpty()) return ResponseEntity.noContent().build();
+                java.util.List<java.util.Map<String,Object>> out = new java.util.ArrayList<>();
+                for (java.util.Map<String,Object> r : rows) {
+                    java.util.Map<String,Object> m = new java.util.HashMap<>();
+                    m.put("idTrofeo", r.get("id_trofeo"));
+                    m.put("idLogro", r.get("id_logro"));
+                    m.put("nombre", r.get("logro_nombre"));
+                    m.put("descripcion", r.get("logro_descripcion"));
+                    m.put("id_condicion", r.get("condicion_id"));
+                    m.put("condicion_template", r.get("condicion_template"));
+                    m.put("restriccion", r.get("restriccion"));
+                    out.add(m);
+                }
+                return ResponseEntity.ok(out);
+            }
+
+            // Normal flow when repository returned results
             if(trofeos == null || trofeos.isEmpty()) return ResponseEntity.noContent().build();
             java.util.List<java.util.Map<String,Object>> out = new java.util.ArrayList<>();
             for(Trofeo t: trofeos){
@@ -372,7 +425,7 @@ public class LogroController {
                     Condicion c = null;
                     try { c = condicionService.findById(l.getId_condicion()); } catch(Exception ex) { c = null; }
                     java.util.Map<String,Object> m = new java.util.HashMap<>();
-                    m.put("idTrofeo", t.getIdTrofeo());
+                    m.put("idTrofeo", t.getId_trofeo());
                     m.put("idLogro", l.getIdLogro());
                     m.put("nombre", l.getNombre());
                     m.put("descripcion", l.getDescripcion());
@@ -388,7 +441,7 @@ public class LogroController {
                     out.add(m);
                 } catch (Exception ex) {
                     // Skip this trofeo but continue with others; log warning with stacktrace
-                    logger.warn("Skipping trofeo {} due to error: {}", t == null ? "<null>" : t.getIdTrofeo(), ex.toString());
+                    logger.warn("Skipping trofeo {} due to error: {}", t == null ? "<null>" : t.getId_trofeo(), ex.toString());
                     logger.debug("Stacktrace:", ex);
                 }
             }
