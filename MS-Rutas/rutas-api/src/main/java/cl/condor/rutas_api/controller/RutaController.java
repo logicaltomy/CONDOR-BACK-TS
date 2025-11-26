@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.reactive.function.client.WebClientRequestException;
 
 import java.util.List;
+import java.util.Map;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
@@ -41,9 +42,9 @@ public class RutaController {
             }
     )
     @GetMapping
-    public ResponseEntity<List<Ruta>> findAll() {
+    public ResponseEntity<List<cl.condor.rutas_api.dto.RutaResponse>> findAll() {
         try {
-            List<Ruta> rutas = rutaService.findAll();
+            List<cl.condor.rutas_api.dto.RutaResponse> rutas = rutaService.findAllResponses();
 
             if (rutas.isEmpty()) {
                 return ResponseEntity.noContent().build();
@@ -53,7 +54,6 @@ public class RutaController {
         }catch (WebClientRequestException e) {
             return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
         }catch (RuntimeException e) {
-            // Asume que cualquier RuntimeException no WebClient es un error interno o Not Found
             return ResponseEntity.notFound().build();
         }
     }
@@ -69,9 +69,9 @@ public class RutaController {
             }
     )
     @GetMapping("/{id}")
-    public ResponseEntity<Ruta> getById(@PathVariable Integer id) {
+    public ResponseEntity<cl.condor.rutas_api.dto.RutaResponse> getById(@PathVariable Integer id) {
         try {
-            return ResponseEntity.ok(rutaService.findById(id));
+            return ResponseEntity.ok(rutaService.findResponseById(id));
         }catch (WebClientRequestException e) {
             return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
         }catch (RuntimeException e) {
@@ -90,14 +90,47 @@ public class RutaController {
             }
     )
     @PostMapping
-    public ResponseEntity<Ruta> createRuta(@RequestBody Ruta ruta) {
+    public ResponseEntity<?> createRuta(@RequestBody cl.condor.rutas_api.dto.RutaRequest req) {
         try {
+            // map request to entity, applying safe defaults for non-nullable DB columns
+            Ruta ruta = new Ruta();
+            ruta.setNombre(req.getNombre());
+            ruta.setDescripcion(req.getDescripcion());
+            ruta.setDistancia(req.getDistancia() != null ? req.getDistancia() : java.math.BigDecimal.ZERO);
+            // f_public/f_baneo stored as LocalDateTime in entity; for create we keep null or set now if requested true
+            if (Boolean.TRUE.equals(req.getF_public())) {
+                ruta.setF_public(java.time.LocalDateTime.now());
+            } else {
+                ruta.setF_public(null);
+            }
+            ruta.setF_baneo(null);
+            ruta.setGeometriaPolyline(req.getGeometria_polyline() != null ? req.getGeometria_polyline() : "");
+            ruta.setTiempoSegundos(req.getTiempo_segundos() != null ? req.getTiempo_segundos() : 0);
+            ruta.setProm_calificacion(req.getProm_calificacion() != null ? req.getProm_calificacion() : java.math.BigDecimal.ZERO);
+            ruta.setId_estado(req.getId_estado());
+            ruta.setId_region(req.getId_region());
+            ruta.setId_tipo(req.getId_tipo());
+            ruta.setId_dificultad(req.getId_dificultad());
+
             Ruta savedRuta = rutaService.save(ruta);
-            return ResponseEntity.ok(savedRuta);
-        }catch (WebClientRequestException e) {
-            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
-        }catch (RuntimeException e) {
-            return ResponseEntity.badRequest().build();
+
+            // if fotos provided as URLs, save them as Foto records with imagen=null and nombre=url
+            if (req.getFoto() != null && !req.getFoto().isEmpty()) {
+                for (String url : req.getFoto()) {
+                    Foto f = new Foto();
+                    f.setNombre(url);
+                    f.setImagen(null);
+                    f.setIdRuta(savedRuta.getId_ruta());
+                    rutaService.save(f);
+                }
+            }
+
+            return ResponseEntity.ok(rutaService.findResponseById(savedRuta.getId_ruta()));
+        } catch (WebClientRequestException e) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(Map.of("message", "Servicio externo no disponible."));
+        } catch (RuntimeException e) {
+            // return the runtime exception message in the response body for client-friendly error display
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", e.getMessage()));
         }
     }
 
@@ -214,6 +247,22 @@ public class RutaController {
         }catch (WebClientRequestException e) {
             return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
         }catch (RuntimeException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    @Operation(
+            summary = "Actualizar ruta (reemplazo completo)",
+            description = "Actualiza todos los campos editables de una ruta mediante PUT."
+    )
+    @PutMapping("/{id}")
+    public ResponseEntity<cl.condor.rutas_api.dto.RutaResponse> updateRuta(@PathVariable Integer id, @RequestBody cl.condor.rutas_api.dto.RutaRequest req) {
+        try {
+            rutaService.updateRutaFromRequest(id, req);
+            return ResponseEntity.ok(rutaService.findResponseById(id));
+        } catch (WebClientRequestException e) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
+        } catch (RuntimeException e) {
             return ResponseEntity.notFound().build();
         }
     }

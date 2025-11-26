@@ -17,7 +17,8 @@ public class Foto {
     @Column(name = "id_foto")
     private Integer id_foto;
 
-    @Column(name = "nombre", length = 150)
+    // Allow long URLs (photo names may be external URLs). Increase length to avoid truncation.
+    @Column(name = "nombre", length = 2048)
     private String nombre;
 
     @Lob
