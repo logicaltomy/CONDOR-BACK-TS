@@ -300,6 +300,22 @@ public class RutaController {
     }
 
     @Operation(
+            summary = "Eliminar una ruta",
+            description = "Elimina permanentemente una ruta y sus fotos asociadas."
+    )
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteRuta(@PathVariable Integer id) {
+        try {
+            rutaService.deleteRuta(id);
+            return ResponseEntity.noContent().build();
+        } catch (org.springframework.web.reactive.function.client.WebClientRequestException e) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
+        } catch (RuntimeException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    @Operation(
             summary = "Funcion que te trae el tipo de la ruta"
     )
     @GetMapping("/tipo/{id}")

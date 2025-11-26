@@ -7,4 +7,8 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface TrofeoRepository extends CrudRepository<Trofeo, Integer> {
     boolean existsByIdUsuarioAndIdLogro(Integer idUsuario, Integer idLogro);
+    long countByIdLogro(Integer idLogro);
+
+    // Permite listar todos los trofeos ganados por un usuario
+    java.util.List<Trofeo> findByIdUsuario(Integer idUsuario);
 }

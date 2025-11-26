@@ -5,6 +5,8 @@ import cl.condor.logros_api.model.Logro;
 import cl.condor.logros_api.model.Tipo_condicion;
 import cl.condor.logros_api.model.Trofeo;
 import cl.condor.logros_api.service.CondicionService;
+import cl.condor.logros_api.repository.TrofeoRepository;
+import jakarta.servlet.http.HttpServletRequest;
 import cl.condor.logros_api.service.LogroService;
 import io.swagger.v3.oas.annotations.Operation; // Importación necesaria
 import io.swagger.v3.oas.annotations.tags.Tag; // Importación necesaria
@@ -14,7 +16,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.reactive.function.client.WebClientRequestException;
-import org.springframework.web.reactive.function.client.WebClientResponseException;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -28,11 +32,16 @@ import java.util.List;
 @RequestMapping("/api/v1/logros")
 public class LogroController {
 
+    private static final Logger logger = LoggerFactory.getLogger(LogroController.class);
+
     @Autowired
     private LogroService logroService;
 
     @Autowired
     private CondicionService condicionService;
+
+    @Autowired
+    private TrofeoRepository trofeoRepository;
 
     // --- ENDPOINTS: LOGROS (CRUD BÁSICO) --------------------------------------
 
@@ -60,7 +69,10 @@ public class LogroController {
             }
     )
     @PostMapping
-    public ResponseEntity<Logro> createLogro(@RequestBody Logro logro){
+    public ResponseEntity<Logro> createLogro(@RequestBody Logro logro, HttpServletRequest request){
+        if(!isModeratorOrAdmin(request)){
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
         try {
             Logro resultado = logroService.save(logro);
             return ResponseEntity.ok(resultado);
@@ -92,6 +104,33 @@ public class LogroController {
             return ResponseEntity.notFound().build();
         }
         return ResponseEntity.ok(resultado);
+    }
+
+    @Operation(
+            summary = "Listar logros con conteo de usuarios",
+            description = "Retorna la lista de logros junto al número de usuarios que ya poseen cada logro."
+    )
+    @GetMapping("/conConteo")
+    public ResponseEntity<List<?>> getLogrosConConteo(){
+        try{
+            List<Logro> logros = logroService.findAll();
+            if(logros.isEmpty()) return ResponseEntity.noContent().build();
+            // Construir respuesta simple con conteo por logro
+            List<java.util.Map<String,Object>> out = new java.util.ArrayList<>();
+            for(Logro l: logros){
+                long conteo = trofeoRepository.countByIdLogro(l.getIdLogro());
+                java.util.Map<String,Object> m = new java.util.HashMap<>();
+                m.put("idLogro", l.getIdLogro());
+                m.put("nombre", l.getNombre());
+                m.put("descripcion", l.getDescripcion());
+                m.put("id_estado", l.getId_estado());
+                m.put("conteoUsuarios", conteo);
+                out.add(m);
+            }
+            return ResponseEntity.ok(out);
+        }catch(RuntimeException e){
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
     }
 
     // --- ENDPOINTS: TROFEOS (LÓGICA DE NEGOCIO) --------------------------------
@@ -253,7 +292,10 @@ public class LogroController {
             description = "Actualiza el campo 'id_estado' (activo/inactivo/baneado) de un logro. Se espera el ID de estado del microservicio de Usuarios."
     )
     @PatchMapping("/{id}/estado")
-    public ResponseEntity<Logro> updateEstado(@PathVariable int id, @RequestBody Integer estado){
+    public ResponseEntity<Logro> updateEstado(@PathVariable int id, @RequestBody Integer estado, HttpServletRequest request){
+        if(!isModeratorOrAdmin(request)){
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
         try{
             Logro logro = logroService.updateEstado(id, estado);
             return  ResponseEntity.ok(logro);
@@ -262,6 +304,20 @@ public class LogroController {
                 return ResponseEntity.notFound().build();
             }
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    // --- Helpers -----------------------------------------------------------
+    private boolean isModeratorOrAdmin(HttpServletRequest req){
+        if(req == null) return false;
+        String role = req.getHeader("X-User-Role");
+        if(role == null) return false;
+        try{
+            int id = Integer.parseInt(role);
+            return id == 1 || id == 2; // 1=Admin,2=Moderador
+        }catch(Exception e){
+            String r = role.toLowerCase();
+            return r.contains("admin") || r.contains("moder");
         }
     }
 
@@ -295,6 +351,52 @@ public class LogroController {
             if(e.getMessage().equals("Condicion no encontrada")){
                 return ResponseEntity.notFound().build();
             }
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    @Operation(
+            summary = "Listar trofeos por usuario",
+            description = "Retorna la lista de logros (trofeos) que ha ganado un usuario, incluyendo la condición y la restricción para mostrar texto en el cliente."
+    )
+    @GetMapping("/trofeos/usuario/{idUsuario}")
+    public ResponseEntity<java.util.List<java.util.Map<String,Object>>> getTrofeosByUsuario(@PathVariable Integer idUsuario){
+        try{
+            java.util.List<Trofeo> trofeos = trofeoRepository.findByIdUsuario(idUsuario);
+            if(trofeos == null || trofeos.isEmpty()) return ResponseEntity.noContent().build();
+            java.util.List<java.util.Map<String,Object>> out = new java.util.ArrayList<>();
+            for(Trofeo t: trofeos){
+                try {
+                    Logro l = logroService.findById(t.getIdLogro());
+                    if (l == null) continue; // skip if logro not found
+                    Condicion c = null;
+                    try { c = condicionService.findById(l.getId_condicion()); } catch(Exception ex) { c = null; }
+                    java.util.Map<String,Object> m = new java.util.HashMap<>();
+                    m.put("idTrofeo", t.getIdTrofeo());
+                    m.put("idLogro", l.getIdLogro());
+                    m.put("nombre", l.getNombre());
+                    m.put("descripcion", l.getDescripcion());
+                    if (c != null) {
+                        m.put("id_condicion", c.getId_condicion());
+                        m.put("condicion_template", c.getCondicion());
+                        m.put("restriccion", c.getRestriccion());
+                    } else {
+                        m.put("id_condicion", null);
+                        m.put("condicion_template", null);
+                        m.put("restriccion", null);
+                    }
+                    out.add(m);
+                } catch (Exception ex) {
+                    // Skip this trofeo but continue with others; log warning with stacktrace
+                    logger.warn("Skipping trofeo {} due to error: {}", t == null ? "<null>" : t.getIdTrofeo(), ex.toString());
+                    logger.debug("Stacktrace:", ex);
+                }
+            }
+            if (out.isEmpty()) return ResponseEntity.noContent().build();
+            return ResponseEntity.ok(out);
+        }catch(RuntimeException e){
+            // Unexpected failure
+            logger.error("Error fetching trofeos for usuario {}", idUsuario, e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }

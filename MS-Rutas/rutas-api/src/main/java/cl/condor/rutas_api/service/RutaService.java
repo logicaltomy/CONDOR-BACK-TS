@@ -193,6 +193,22 @@ public class RutaService {
         fotoRepository.delete(foto);
     }
 
+    @Transactional
+    public void deleteRuta(Integer id) {
+        Ruta ruta = rutaRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Ruta no encontrada"));
+
+        // Eliminar fotos asociadas primero
+        try {
+            java.util.List<Foto> fotos = fotoRepository.findByIdRuta(id);
+            if (fotos != null && !fotos.isEmpty()) {
+                fotoRepository.deleteAll(fotos);
+            }
+        } catch (Exception ignored) {}
+
+        rutaRepository.delete(ruta);
+    }
+
     public Tipo findTipoById(Integer id) {
         return tipoRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Tipo no encontrada"));
